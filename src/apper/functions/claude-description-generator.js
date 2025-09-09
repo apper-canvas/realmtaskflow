@@ -3,17 +3,17 @@ import Error from "@/components/ui/Error";
 // Claude Description Generator Custom Action
 // Generates task descriptions using Claude AI based on task titles
 
-// Ensure Response is available (for Cloudflare Workers environment)
-const ResponseConstructor = typeof Response !== 'undefined' ? Response : class {
+// Response constructor for Cloudflare Workers environment
+const ResponseConstructor = class {
   constructor(body, init) {
     this.body = body;
     this.status = init?.status || 200;
-    this.headers = new Headers(init?.headers);
+    this.headers = init?.headers || {};
   }
 };
 
 export default {
-  async fetch(request) {
+async fetch(request, { secrets, env } = {}) {
     try {
       // Handle CORS preflight
       if (request.method === 'OPTIONS') {
@@ -50,7 +50,12 @@ if (!title || typeof title !== 'string') {
       }
 
 // Get Claude API key from secrets
-      const claudeApiKey = await apper.getSecret('CLAUDE_API_KEY');
+// Get Claude API key from secrets or environment
+      const claudeApiKey = secrets?.CLAUDE_API_KEY || env?.CLAUDE_API_KEY;
+      
+      if (!claudeApiKey) {
+        throw new Error('Claude API key not found. Please configure CLAUDE_API_KEY in your environment or secrets.');
+      }
       
       if (!claudeApiKey) {
         // Fallback to mock descriptions if API key not available
@@ -66,8 +71,7 @@ if (!title || typeof title !== 'string') {
         
         // Add realistic delay to simulate processing
         await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
-        
-        return new Response(JSON.stringify({
+return new ResponseConstructor(JSON.stringify({
           success: true,
           description: randomDescription,
           source: 'fallback'
@@ -112,8 +116,7 @@ Keep it practical and focused on helping someone complete this task effectively.
 
         // Add small delay for better UX (Claude is very fast)
         await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
-        
-        return new Response(JSON.stringify({
+return new ResponseConstructor(JSON.stringify({
           success: true,
           description: generatedDescription,
           source: 'claude-ai'
@@ -121,7 +124,6 @@ Keep it practical and focused on helping someone complete this task effectively.
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
-
       } catch (error) {
         console.error('Claude API error:', error);
         
