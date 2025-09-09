@@ -9,26 +9,30 @@ import { cn } from "@/utils/cn"
 const TaskItem = ({ task, onToggleComplete, onDeleteTask, onEditTask }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState(task.text)
+  const [editDescription, setEditDescription] = useState(task.description || "")
   const [editPriority, setEditPriority] = useState(task.priority)
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleEdit = () => {
     if (isEditing) {
-      if (editText.trim() && editText.trim() !== task.text) {
+if (editText.trim() && (editText.trim() !== task.text || editDescription.trim() !== (task.description || "") || editPriority !== task.priority)) {
         onEditTask(task.Id, {
           text: editText.trim(),
+          description: editDescription.trim(),
           priority: editPriority
         })
       } else if (!editText.trim()) {
         setEditText(task.text)
+        setEditDescription(task.description || "")
         setEditPriority(task.priority)
       }
     }
     setIsEditing(!isEditing)
   }
 
-  const handleCancel = () => {
+const handleCancel = () => {
     setEditText(task.text)
+    setEditDescription(task.description || "")
     setEditPriority(task.priority)
     setIsEditing(false)
   }
@@ -129,13 +133,20 @@ const TaskItem = ({ task, onToggleComplete, onDeleteTask, onEditTask }) => {
         
         <div className="flex-1 min-w-0">
           {isEditing ? (
-            <div className="space-y-3">
+<div className="space-y-3">
               <Input
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 onKeyDown={handleKeyPress}
                 className="text-sm"
                 autoFocus
+              />
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Add a description..."
+                className="w-full min-h-[60px] px-3 py-2 text-sm border border-secondary-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                rows={2}
               />
               <Select
                 value={editPriority}
@@ -148,7 +159,7 @@ const TaskItem = ({ task, onToggleComplete, onDeleteTask, onEditTask }) => {
               </Select>
             </div>
           ) : (
-            <div className="space-y-2">
+<div className="space-y-2">
               <p 
                 className={cn(
                   "text-sm font-medium leading-relaxed transition-all duration-200",
@@ -159,6 +170,18 @@ const TaskItem = ({ task, onToggleComplete, onDeleteTask, onEditTask }) => {
               >
                 {task.text}
               </p>
+              {task.description && (
+                <p 
+                  className={cn(
+                    "text-xs leading-relaxed transition-all duration-200",
+                    task.completed 
+                      ? "line-through text-secondary-400" 
+                      : "text-secondary-600"
+                  )}
+                >
+                  {task.description}
+                </p>
+              )}
               {getPriorityBadge(task.priority)}
             </div>
           )}

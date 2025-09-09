@@ -34,7 +34,7 @@ const TaskManager = () => {
     loadTasks()
   }, [])
 
-  const handleAddTask = async (taskData) => {
+const handleAddTask = async (taskData) => {
     try {
       const newTask = await taskService.create({
         ...taskData,
