@@ -1,3 +1,5 @@
+import React from "react";
+import Error from "@/components/ui/Error";
 // Claude Description Generator Custom Action
 // Generates task descriptions using Claude AI based on task titles
 
@@ -47,38 +49,116 @@ if (!title || typeof title !== 'string') {
         });
       }
 
-      // Simulate Claude API call with realistic response
-      // In production, this would call the actual Claude API
-      const descriptions = [
-        `Break down this task into actionable steps and identify key deliverables. Consider potential challenges and allocate appropriate time for completion.`,
-        `Analyze requirements, gather necessary resources, and create a structured approach to accomplish this efficiently while maintaining quality standards.`,
-        `Define success criteria, establish timeline milestones, and identify stakeholders who need to be involved or informed throughout the process.`,
-        `Research best practices, document current state, and develop a systematic plan to address all aspects of this task comprehensively.`,
-        `Prioritize sub-tasks, allocate resources effectively, and establish checkpoints to monitor progress and ensure timely completion.`
-      ];
-
-      const randomDescription = descriptions[Math.floor(Math.random() * descriptions.length)];
+// Get Claude API key from secrets
+      const claudeApiKey = await apper.getSecret('CLAUDE_API_KEY');
       
-      // Add realistic delay to simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+      if (!claudeApiKey) {
+        // Fallback to mock descriptions if API key not available
+        const fallbackDescriptions = [
+          `Break down this task into actionable steps and identify key deliverables. Consider potential challenges and allocate appropriate time for completion.`,
+          `Analyze requirements, gather necessary resources, and create a structured approach to accomplish this efficiently while maintaining quality standards.`,
+          `Define success criteria, establish timeline milestones, and identify stakeholders who need to be involved or informed throughout the process.`,
+          `Research best practices, document current state, and develop a systematic plan to address all aspects of this task comprehensively.`,
+          `Prioritize sub-tasks, allocate resources effectively, and establish checkpoints to monitor progress and ensure timely completion.`
+        ];
+        
+        const randomDescription = fallbackDescriptions[Math.floor(Math.random() * fallbackDescriptions.length)];
+        
+        // Add realistic delay to simulate processing
+        await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+        
+        return new Response(JSON.stringify({
+          success: true,
+          description: randomDescription,
+          source: 'fallback'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
 
-return new ResponseConstructor(JSON.stringify({ 
-        success: true, 
-        description: randomDescription 
-      }), {
-        status: 200,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      });
-} catch (error) {
+      try {
+        // Call Claude API
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': claudeApiKey,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 200,
+            messages: [{
+              role: 'user',
+              content: `Generate a helpful, actionable task description for the following task title: "${title}"
+
+Please provide a concise description that includes:
+- Key steps or considerations
+- Potential challenges to think about
+- Success criteria or deliverables
+
+Keep it practical and focused on helping someone complete this task effectively. Limit to 1-2 sentences.`
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Claude API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const generatedDescription = data.content?.[0]?.text || 'Failed to generate description';
+
+        // Add small delay for better UX (Claude is very fast)
+        await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 500));
+        
+        return new Response(JSON.stringify({
+          success: true,
+          description: generatedDescription,
+          source: 'claude-ai'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('Claude API error:', error);
+        
+        // Fallback to mock descriptions on API error
+        const fallbackDescriptions = [
+          `Break down this task into actionable steps and identify key deliverables. Consider potential challenges and allocate appropriate time for completion.`,
+          `Analyze requirements, gather necessary resources, and create a structured approach to accomplish this efficiently while maintaining quality standards.`,
+          `Define success criteria, establish timeline milestones, and identify stakeholders who need to be involved or informed throughout the process.`
+        ];
+        
+        const randomDescription = fallbackDescriptions[Math.floor(Math.random() * fallbackDescriptions.length)];
+        
+// Add realistic delay
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+        
+        return new ResponseConstructor(JSON.stringify({ 
+          success: true, 
+          description: randomDescription,
+          source: 'fallback'
+        }), {
+          status: 200,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      }
+    } catch (error) {
       return new ResponseConstructor(JSON.stringify({ 
         success: false, 
         error: 'Failed to generate description' 
       }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       });
     }
   }
